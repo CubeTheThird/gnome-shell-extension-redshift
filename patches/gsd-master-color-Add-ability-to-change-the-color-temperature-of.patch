@@ -1,8 +1,8 @@
-From 460f7344c042a99c4c7e3b6912f009858e27ffc9 Mon Sep 17 00:00:00 2001
-From: Benjamin Berg <benjamin@sipsolutions.net>
-Date: Sat, 19 Nov 2016 22:57:48 +0100
-Subject: [PATCH] color: Add ability to change the color temperature of the
- display
+From 59bf9e7fa537f6086f33915826a6aaef56267f80 Mon Sep 17 00:00:00 2001
+From: CubeTheThird <cubethethird@gmail.com>
+Date: Wed, 18 Jan 2017 21:37:42 -0500
+Subject: [PATCH] color: Add ability to change the color temperature and
+brightness of the display
 
 This is an experimental feature which allows the color temperature to be
 changed while still keeping further gamma correction active.
@@ -12,20 +12,20 @@ This should be used with the experimental redshift extension from:
 
 Signed-off-by: Benjamin Berg <benjamin@sipsolutions.net>
 ---
- ...settings-daemon.plugins.color.gschema.xml.in.in |  11 +
+ ...settings-daemon.plugins.color.gschema.xml.in.in |  17 ++
  plugins/color/Makefile.am                          |   2 +
  plugins/color/colorramp.c                          | 308 +++++++++++++++++++++
  plugins/color/colorramp.h                          |  27 ++
- plugins/color/gsd-color-state.c                    |  68 ++++-
- 5 files changed, 407 insertions(+), 9 deletions(-)
+ plugins/color/gsd-color-state.c                    |  82 +++++-
+ 5 files changed, 426 insertions(+), 10 deletions(-)
  create mode 100644 plugins/color/colorramp.c
  create mode 100644 plugins/color/colorramp.h
 
 diff --git a/data/org.gnome.settings-daemon.plugins.color.gschema.xml.in.in b/data/org.gnome.settings-daemon.plugins.color.gschema.xml.in.in
-index 3df07c7..4713b09 100644
+index 3df07c75..1e586129 100644
 --- a/data/org.gnome.settings-daemon.plugins.color.gschema.xml.in.in
 +++ b/data/org.gnome.settings-daemon.plugins.color.gschema.xml.in.in
-@@ -10,5 +10,16 @@
+@@ -10,5 +10,22 @@
        <_summary>The duration a printer profile is valid</_summary>
        <_description>This is the number of days after which the printer color profile is considered invalid.</_description>
      </key>
@@ -40,10 +40,16 @@ index 3df07c7..4713b09 100644
 +      <_summary>The color temperature of the displays</_summary>
 +      <_description>The color temperature of all displays that have a color profile is adjusted. A value of 6500 Kelvin is an identify transformation.</_description>
 +    </key>
++    <key name="color-brightness" type="d">
++      <default>1.0</default>
++      <range min="0.1" max="1.0"/>
++      <_summary>The color brightness of the displays</_summary>
++      <_description>The color brightness of all displays that have a color profile is adjusted. Maximum standard brightness is 1.0.</_description>
++    </key>
    </schema>
  </schemalist>
 diff --git a/plugins/color/Makefile.am b/plugins/color/Makefile.am
-index 8fc729a..416ba25 100644
+index 8fc729ad..416ba25d 100644
 --- a/plugins/color/Makefile.am
 +++ b/plugins/color/Makefile.am
 @@ -37,6 +37,8 @@ gsd_color_SOURCES =			\
@@ -57,7 +63,7 @@ index 8fc729a..416ba25 100644
  gsd_color_CFLAGS =			\
 diff --git a/plugins/color/colorramp.c b/plugins/color/colorramp.c
 new file mode 100644
-index 0000000..a4949d6
+index 00000000..1b4f297c
 --- /dev/null
 +++ b/plugins/color/colorramp.c
 @@ -0,0 +1,308 @@
@@ -344,7 +350,7 @@ index 0000000..a4949d6
 +}
 +
 +void
-+colorramp_get_factor(int to_temp, double *r, double *g, double *b)
++colorramp_get_factor(int to_temp, double brightness, double *r, double *g, double *b)
 +{
 +	/* Approximate white point */
 +	float white_point[3];
@@ -365,13 +371,13 @@ index 0000000..a4949d6
 +	interpolate_color(alpha, &blackbody_color[temp_index],
 +			  &blackbody_color[temp_index+3], white_point);
 +
-+	*r = white_point[0];
-+	*g = white_point[1];
-+	*b = white_point[2];
++	*r = brightness * white_point[0];
++	*g = brightness * white_point[1];
++	*b = brightness * white_point[2];
 +}
 diff --git a/plugins/color/colorramp.h b/plugins/color/colorramp.h
 new file mode 100644
-index 0000000..436d736
+index 00000000..fcc32e8f
 --- /dev/null
 +++ b/plugins/color/colorramp.h
 @@ -0,0 +1,27 @@
@@ -399,22 +405,14 @@ index 0000000..436d736
 +
 +#include <stdint.h>
 +
-+void colorramp_get_factor(int to_temp, double *r, double *g, double *b);
++void colorramp_get_factor(int to_temp, double brightness, double *r, double *g, double *b);
 +
 +#endif /* ! REDSHIFT_COLORRAMP_H */
 diff --git a/plugins/color/gsd-color-state.c b/plugins/color/gsd-color-state.c
-index 8778a44..36f343d 100644
+index 8778a44f..c3deb299 100644
 --- a/plugins/color/gsd-color-state.c
 +++ b/plugins/color/gsd-color-state.c
-@@ -27,6 +27,7 @@
- #include <lcms2.h>
- #include <canberra-gtk.h>
- 
-+
- #define GNOME_DESKTOP_USE_UNSTABLE_API
- #include <libgnome-desktop/gnome-rr.h>
- 
-@@ -40,11 +41,14 @@
+@@ -40,11 +40,14 @@
  #include "gsd-color-state.h"
  #include "gcm-edid.h"
  
@@ -429,11 +427,12 @@ index 8778a44..36f343d 100644
  
  struct GsdColorStatePrivate
  {
-@@ -56,6 +60,8 @@ struct GsdColorStatePrivate
+@@ -56,6 +59,9 @@ struct GsdColorStatePrivate
          GdkWindow       *gdk_window;
          gboolean         session_is_active;
          GHashTable      *device_assign_hash;
 +        gint            color_temperature;
++        gdouble         color_brightness;
 +        GSettings       *settings;
  };
  
@@ -443,7 +442,7 @@ index 8778a44..36f343d 100644
  
  static GPtrArray *
 -gcm_session_generate_vcgt (CdProfile *profile, guint size)
-+gcm_session_generate_vcgt (CdProfile *profile, gint color_temperature, guint size)
++gcm_session_generate_vcgt (CdProfile *profile, gint color_temperature, gdouble color_brightness, guint size)
  {
          GnomeRROutputClutItem *tmp;
          GPtrArray *array = NULL;
@@ -459,7 +458,7 @@ index 8778a44..36f343d 100644
                  goto out;
          }
  
-+        colorramp_get_factor(color_temperature, &r, &g, &b);
++        colorramp_get_factor(color_temperature, color_brightness, &r, &g, &b);
 +
          /* create array */
          array = g_ptr_array_new_with_free_func (g_free);
@@ -475,33 +474,36 @@ index 8778a44..36f343d 100644
                  g_ptr_array_add (array, tmp);
          }
  out:
-@@ -475,6 +484,7 @@ out:
+@@ -475,6 +484,8 @@ out:
  static gboolean
  gcm_session_device_set_gamma (GnomeRROutput *output,
                                CdProfile *profile,
 +                              gint color_temperature,
++                              gdouble color_brightness,
                                GError **error)
  {
          gboolean ret = FALSE;
-@@ -487,7 +497,7 @@ gcm_session_device_set_gamma (GnomeRROutput *output,
+@@ -487,7 +498,7 @@ gcm_session_device_set_gamma (GnomeRROutput *output,
                  ret = TRUE;
                  goto out;
          }
 -        clut = gcm_session_generate_vcgt (profile, size);
-+        clut = gcm_session_generate_vcgt (profile, color_temperature, size);
++        clut = gcm_session_generate_vcgt (profile, color_temperature, color_brightness, size);
          if (clut == NULL) {
                  g_set_error_literal (error,
                                       GSD_COLOR_MANAGER_ERROR,
-@@ -507,7 +517,7 @@ out:
+@@ -507,8 +518,8 @@ out:
  }
  
  static gboolean
 -gcm_session_device_reset_gamma (GnomeRROutput *output,
+-                                GError **error)
 +gcm_session_device_reset_gamma (GnomeRROutput *output, gint color_temperature,
-                                 GError **error)
++                                gdouble color_brightness, GError **error)
  {
          gboolean ret;
-@@ -516,6 +526,7 @@ gcm_session_device_reset_gamma (GnomeRROutput *output,
+         guint i;
+@@ -516,6 +527,7 @@ gcm_session_device_reset_gamma (GnomeRROutput *output,
          guint32 value;
          GPtrArray *clut;
          GnomeRROutputClutItem *data;
@@ -509,12 +511,12 @@ index 8778a44..36f343d 100644
  
          /* create a linear ramp */
          g_debug ("falling back to dummy ramp");
-@@ -525,12 +536,15 @@ gcm_session_device_reset_gamma (GnomeRROutput *output,
+@@ -525,12 +537,15 @@ gcm_session_device_reset_gamma (GnomeRROutput *output,
                  ret = TRUE;
                  goto out;
          }
 +
-+        colorramp_get_factor(color_temperature, &r, &g, &b);
++        colorramp_get_factor(color_temperature, color_brightness, &r, &g, &b);
 +
          for (i = 0; i < size; i++) {
                  value = (i * 0xffff) / (size - 1);
@@ -528,7 +530,7 @@ index 8778a44..36f343d 100644
                  g_ptr_array_add (clut, data);
          }
  
-@@ -669,6 +683,7 @@ gcm_session_device_assign_profile_connect_cb (GObject *object,
+@@ -669,6 +684,7 @@ gcm_session_device_assign_profile_connect_cb (GObject *object,
          guint brightness_percentage;
          GcmSessionAsyncHelper *helper = (GcmSessionAsyncHelper *) user_data;
          GsdColorState *state = GSD_COLOR_STATE (helper->state);
@@ -536,31 +538,34 @@ index 8778a44..36f343d 100644
  
          /* get properties */
          ret = cd_profile_connect_finish (profile, res, &error);
-@@ -720,6 +735,7 @@ gcm_session_device_assign_profile_connect_cb (GObject *object,
+@@ -720,6 +736,8 @@ gcm_session_device_assign_profile_connect_cb (GObject *object,
          if (ret) {
                  ret = gcm_session_device_set_gamma (output,
                                                      profile,
 +                                                    priv->color_temperature,
++                                                    priv->color_brightness,
                                                      &error);
                  if (!ret) {
                          g_warning ("failed to set %s gamma tables: %s",
-@@ -730,6 +746,7 @@ gcm_session_device_assign_profile_connect_cb (GObject *object,
+@@ -730,6 +748,8 @@ gcm_session_device_assign_profile_connect_cb (GObject *object,
                  }
          } else {
                  ret = gcm_session_device_reset_gamma (output,
 +                                                      priv->color_temperature,
++                                                      priv->color_brightness,
                                                        &error);
                  if (!ret) {
                          g_warning ("failed to reset %s gamma tables: %s",
-@@ -874,6 +891,7 @@ gcm_session_device_assign_connect_cb (GObject *object,
+@@ -874,6 +894,8 @@ gcm_session_device_assign_connect_cb (GObject *object,
  
                  /* reset, as we want linear profiles for profiling */
                  ret = gcm_session_device_reset_gamma (output,
 +                                                      priv->color_temperature,
++                                                      priv->color_brightness,
                                                        &error);
                  if (!ret) {
                          g_warning ("failed to reset %s gamma tables: %s",
-@@ -1357,6 +1375,25 @@ gcm_session_client_connect_cb (GObject *source_object,
+@@ -1357,6 +1379,29 @@ gcm_session_client_connect_cb (GObject *source_object,
  }
  
  static void
@@ -568,12 +573,16 @@ index 8778a44..36f343d 100644
 +                                const gchar *key,
 +                                GsdColorState *state)
 +{
-+        if (g_str_equal (key, "color-temperature") || g_str_equal (key, "adjust-color-temperature")) {
++        if (g_str_equal (key, "color-temperature") || g_str_equal (key, "color_brightness") ||
++        g_str_equal (key, "adjust-color-temperature")) {
 +                if (g_settings_get_boolean (state->priv->settings, "adjust-color-temperature")) {
 +                        state->priv->color_temperature = g_settings_get_int (state->priv->settings,
 +                                                                              "color-temperature");
++                        state->priv->color_brightness = g_settings_get_double (state->priv->settings,
++                                                                              "color_brightness")
 +                } else {
 +                        state->priv->color_temperature = -1;
++                        state->priv->color_brightness = 1.0;
 +                }
 +
 +                /* Emulate a screen change event. */
@@ -586,7 +595,7 @@ index 8778a44..36f343d 100644
  on_rr_screen_acquired (GObject      *object,
                         GAsyncResult *result,
                         gpointer      data)
-@@ -1402,6 +1439,18 @@ gsd_color_state_start (GsdColorState *state)
+@@ -1402,6 +1447,21 @@ gsd_color_state_start (GsdColorState *state)
          gnome_rr_screen_new_async (gdk_screen_get_default (),
                                     on_rr_screen_acquired,
                                     g_object_ref (state));
@@ -599,20 +608,24 @@ index 8778a44..36f343d 100644
 +        if (g_settings_get_boolean (state->priv->settings, "adjust-color-temperature")) {
 +                state->priv->color_temperature = g_settings_get_int (state->priv->settings,
 +                                                                      "color-temperature");
++                state->priv->color_brightness = g_settings_get_double (state->priv->settings,
++                                                                      "color-brightness");
 +        } else {
 +                state->priv->color_temperature = -1;
++                state->priv->color_brightness = 1.0;
 +        }
  }
  
  void
-@@ -1429,6 +1478,7 @@ gsd_color_state_init (GsdColorState *state)
+@@ -1429,6 +1489,8 @@ gsd_color_state_init (GsdColorState *state)
  
          /* track the active session */
          priv->session = gnome_settings_bus_get_session_proxy ();
 +        priv->color_temperature = -1;
++        priv->color_brightness = 1.0;
  
  #ifdef GDK_WINDOWING_X11
          /* set the _ICC_PROFILE atoms on the root screen */
 -- 
-2.10.2
+2.11.0
 
