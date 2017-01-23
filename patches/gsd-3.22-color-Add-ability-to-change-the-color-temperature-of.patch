@@ -587,7 +587,7 @@ index 9f8308f8..a2f86d9f 100644
 +                        state->priv->color_temperature = g_settings_get_int (state->priv->settings,
 +                                                                              "color-temperature");
 +                        state->priv->color_brightness = g_settings_get_double (state->priv->settings,
-+                                                                              "color_brightness");
++                                                                              "color-brightness");
 +                } else {
 +                        state->priv->color_temperature = -1;
 +                        state->priv->color_brightness = 1.0;
