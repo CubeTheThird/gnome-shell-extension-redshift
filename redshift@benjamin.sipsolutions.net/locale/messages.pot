@@ -41,6 +41,14 @@ msgstr ""
 msgid "Nighttime color temperature (e.g.: 2750K)"
 msgstr ""
 
-#: prefs.js:75
+#: prefs.js:76
+msgid "Daytime brightness (full: 1.0)"
+msgstr ""
+
+#: prefs.js:91
+msgid "Nighttime brightness (e.g.: 0.5)"
+msgstr ""
+
+#: prefs.js:107
 msgid "Length of the dusk/dawn progression in minutes"
 msgstr ""

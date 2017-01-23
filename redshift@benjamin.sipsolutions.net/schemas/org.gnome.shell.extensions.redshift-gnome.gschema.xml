@@ -69,5 +69,17 @@
         <summary>Fixed time of sunset (seconds after midnight)</summary>
         <description>The time of the simulated sunset when in fixed time mode. The setting is given as seconds after midnight.</description>
     </key>
+    <key type="d" name="day-brightness">
+        <default>1.0</default>
+        <range min="0.0" max="1.0" />
+        <summary>The displays brightness by day</summary>
+        <description>The displays brightness by day. The default is 1.0.</description>
+    </key>
+    <key type="d" name="night-brightness">
+        <default>1.0</default>
+        <range min="0.0" max="1.0" />
+        <summary>The displays brightness by night</summary>
+        <description></description>
+    </key>
   </schema>
 </schemalist>

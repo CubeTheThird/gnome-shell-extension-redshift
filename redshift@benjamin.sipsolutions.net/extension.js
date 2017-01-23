@@ -132,6 +132,13 @@ const Redshift = new Lang.Class({
 
         this._color_settings.set_int("color-temperature", temp);
 
+        let night_brt = this._settings.get_double(Lib.NIGHT_BRT_KEY);
+        let day_brt = this._settings.get_double(Lib.DAY_BRT_KEY);
+
+        let brt = night_brt * (1 - night_day) + day_brt * night_day;
+
+        this._color_settings.set_double("color-brightness", brt);
+
         if (enabled) {
             if (night_day < 0.1) {
                 this._icon.icon_name = "my-redshift-moon-symbolic";
