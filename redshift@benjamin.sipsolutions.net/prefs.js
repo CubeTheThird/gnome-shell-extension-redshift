@@ -72,6 +72,38 @@ const RedshiftWidget = new Lang.Class({
         this.w.attach(label, 0, 3, 1, 1);
         this.w.attach(temp, 1, 3, 1, 1);
 
+
+         let label = new Gtk.Label({label: _("Daytime brightness (full: 1.0)"),
+                                           xalign: 0});
+
+        let temp = new Gtk.SpinButton();
+        temp.set_range(0.1, 1.0);
+        temp.set_value(this._settings.get_double(Lib.DAY_BRT_KEY));
+        temp.set_digits(1);
+        temp.set_increments(0.1, 0.5);
+        temp.connect('notify::value', Lang.bind(this, function(button) {
+            this._settings.set_double(Lib.DAY_BRT_KEY, button.value);
+        }));
+
+        this.w.attach(label, 0, 4, 1, 1);
+        this.w.attach(temp, 1, 4, 1, 1);
+
+        let label = new Gtk.Label({label: _("Nighttime brightness (e.g.: 0.5)"),
+                                           xalign: 0});
+
+        let temp = new Gtk.SpinButton();
+        temp.set_range(0.1, 1.0);
+        temp.set_value(this._settings.get_double(Lib.NIGHT_BRT_KEY));
+        temp.set_digits(1);
+        temp.set_increments(0.1, 0.5);
+        temp.connect('notify::value', Lang.bind(this, function(button) {
+            this._settings.set_double(Lib.NIGHT_BRT_KEY, button.value);
+        }));
+   
+
+        this.w.attach(label, 0, 5, 1, 1);
+        this.w.attach(temp, 1, 5, 1, 1);
+
         let label = new Gtk.Label({label: _("Length of the dusk/dawn progression in minutes"),
                                            xalign: 0});
 
@@ -84,8 +116,8 @@ const RedshiftWidget = new Lang.Class({
             this._settings.set_uint(Lib.DUSK_DAWN_LENGTH_KEY, Math.round(button.value));
         }));
 
-        this.w.attach(label, 0, 4, 1, 1);
-        this.w.attach(length, 1, 4, 1, 1);
+        this.w.attach(label, 0, 6, 1, 1);
+        this.w.attach(length, 1, 6, 1, 1);
 
 
         let label = new Gtk.Label({label: _("Source of sunset/sunrise time:"),
@@ -102,8 +134,8 @@ const RedshiftWidget = new Lang.Class({
             this._settings.set_enum(Lib.TIME_SOURCE_KEY, id);
         }));
 
-        this.w.attach(label, 0, 5, 1, 1);
-        this.w.attach(timesrc, 1, 5, 1, 1);
+        this.w.attach(label, 0, 7, 1, 1);
+        this.w.attach(timesrc, 1, 7, 1, 1);
 
 
         function format_time(time) {
@@ -142,8 +174,8 @@ const RedshiftWidget = new Lang.Class({
             }
         }));
 
-        this.w.attach(label, 0, 6, 1, 1);
-        this.w.attach(time, 1, 6, 1, 1);
+        this.w.attach(label, 0, 8, 1, 1);
+        this.w.attach(time, 1, 8, 1, 1);
 
 
         let label = new Gtk.Label({label: _("Time of sunset in fixed mode (hh:mm):"),
@@ -161,8 +193,8 @@ const RedshiftWidget = new Lang.Class({
             }
         }));
 
-        this.w.attach(label, 0, 7, 1, 1);
-        this.w.attach(time, 1, 7, 1, 1);
+        this.w.attach(label, 0, 9, 1, 1);
+        this.w.attach(time, 1, 9, 1, 1);
 
    },
 

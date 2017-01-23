@@ -22,6 +22,8 @@ const SHOW_INDICATOR_KEY = 'show-indicator';
 const STATE_KEY = 'state';
 const NIGHT_TEMP_KEY = 'night-color-temperature';
 const DAY_TEMP_KEY = 'day-color-temperature';
+const NIGHT_BRT_KEY = 'night-brightness'
+const DAY_BRT_KEY = 'day-brightness'
 const NIGHT_DAY_KEY = 'night-day';
 const DUSK_DAWN_LENGTH_KEY = 'dusk-dawn-length';
 
