@@ -581,7 +581,7 @@ index 9f8308f8..a2f86d9f 100644
 +                                const gchar *key,
 +                                GsdColorState *state)
 +{
-+        if (g_str_equal (key, "color-temperature") || g_str_equal (key, "color_brightness") ||
++        if (g_str_equal (key, "color-temperature") || g_str_equal (key, "color-brightness") ||
 +        g_str_equal (key, "adjust-color-temperature")) {
 +                if (g_settings_get_boolean (state->priv->settings, "adjust-color-temperature")) {
 +                        state->priv->color_temperature = g_settings_get_int (state->priv->settings,
